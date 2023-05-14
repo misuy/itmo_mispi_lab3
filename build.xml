@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<project name="lab3" xmlns:ivy="antlib:org.apache.ivy.ant">
+
+    <property file="build.properties"/>
+
+
+    <target name="clean">
+        <delete dir="${ant.dir}"/>
+    </target>
+
+
+    <available classname="org.apache.ivy.Main" property="ivy.installed"/> 
+    <target name="install-ivy" unless="ivy.installed">
+        <echo>INSTALLING IVY</echo>
+        <mkdir dir="${user.home}/.ant/lib"/>
+        <get dest="${user.home}/.ant/lib/ivy.jar" src="http://search.maven.org/remotecontent?filepath=org/apache/ivy/ivy/2.5.1/ivy-2.5.1.jar"/>
+        <echo message="ivy installed"/>
+    </target>
+
+    <target name="load-dependencies">
+        <echo>LOADING DEPENDENCIES</echo>
+        <ivy:cachepath pathid="dependencies.path">
+            <dependency org="org.eclipse.persistence" name="org.eclipse.persistence.jpa" rev="3.0.3"/>
+            <dependency org="org.postgresql" name="postgresql" rev="42.5.0"/>
+
+            <dependency org="org.primefaces" name="primefaces" rev="12.0.0"/>
+
+            <dependency org="jakarta.validation" name="jakarta.validation-api" rev="3.0.2"/>
+            <dependency org="jakarta.mvc" name="jakarta.mvc-api" rev="2.0.0"/>
+            <dependency org="jakarta.faces" name="jakarta.faces-api" rev="4.0.1"/>
+            <dependency org="jakarta.platform" name="jakarta.jakartaee-api" rev="9.1.0"/>
+            <dependency org="jakarta.persistence" name="jakarta.persistence-api" rev="3.0.0" force="true"/>
+        </ivy:cachepath>
+    </target>
+    
+
+    <target name="compile" depends="load-dependencies">
+        <echo>COMPILING JAVA CLASSES</echo>
+        <mkdir dir="${build.classes.dir}"/>
+        <javac compiler="javac1.8" srcdir="${src.java.dir}" destdir="${build.classes.dir}" classpathref="dependencies.path" includeantruntime="false"/>
+    </target>
+
+
+    <target name="war-copy-static">
+        <echo>COPYING STATIC FILES TO WAR</echo>
+        <mkdir dir="${build.war.dir}"/>
+        <copy todir="${build.war.dir}">
+            <fileset dir="${src.webapp.dir}">
+                <exclude name="WEB-INF/**"/>
+            </fileset>
+        </copy>
+    </target>
+
+    <target name="war-copy-libs" depends="load-dependencies">
+        <echo>COPYING LIBS TO WAR</echo>
+        <mkdir dir="${build.war.web-inf.lib.dir}"/>
+        <copy todir="${build.war.web-inf.lib.dir}">
+            <fileset dir="${lib.dir}"/>
+        </copy>
+    </target>
+
+    <target name="war-copy-classes" depends="compile">
+        <echo>COPYING COMPILED CLASSES TO WAR</echo>
+        <mkdir dir="${build.war.web-inf.classes.dir}"/>
+        <copy todir="${build.war.web-inf.classes.dir}">
+            <fileset dir="${build.classes.dir}"/>
+            <fileset dir="${src.resources.dir}"/>
+        </copy>
+        <copy todir="${build.war.web-inf.dir}">
+            <fileset dir="${src.webapp.web-inf.dir}"/>
+        </copy>
+    </target>
+
+    <target name="build" depends="war-copy-static,war-copy-classes,war-copy-libs">
+        <echo>CREATING WAR</echo>
+        <war manifest="MANIFEST.MF" destfile="${build.dir}/${war.name}">
+            <fileset dir="${build.war.dir}"/>
+        </war>
+    </target>
+
+
+    <target name="test" depends="build">
+
+    </target>
+</project>
