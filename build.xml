@@ -17,7 +17,7 @@
         <echo message="ivy installed"/>
     </target>
 
-    <target name="load-dependencies">
+    <target name="load-dependencies" depends="install-ivy">
         <echo>LOADING DEPENDENCIES</echo>
         <ivy:cachepath pathid="dependencies.path">
             <dependency org="org.eclipse.persistence" name="org.eclipse.persistence.jpa" rev="3.0.3"/>
@@ -30,14 +30,32 @@
             <dependency org="jakarta.faces" name="jakarta.faces-api" rev="4.0.1"/>
             <dependency org="jakarta.platform" name="jakarta.jakartaee-api" rev="9.1.0"/>
             <dependency org="jakarta.persistence" name="jakarta.persistence-api" rev="3.0.0" force="true"/>
+
+            <dependency org="org.opentest4j" name="opentest4j" rev="1.2.0"/>
+            <dependency org="org.junit.platform" name="junit-platform-launcher" rev="1.9.1"/>
+            <dependency org="org.junit.platform" name="junit-platform-commons" rev="1.9.1"/>
+            <dependency org="org.junit.platform" name="junit-platform-engine" rev="1.9.1"/>
+            <dependency org="org.junit.jupiter" name="junit-jupiter-api" rev="5.9.1"/>
+            <dependency org="org.junit.jupiter" name="junit-jupiter-engine" rev="5.9.1"/>
         </ivy:cachepath>
-    </target>
-    
+    </target>    
+
 
     <target name="compile" depends="load-dependencies">
         <echo>COMPILING JAVA CLASSES</echo>
         <mkdir dir="${build.classes.dir}"/>
-        <javac compiler="javac1.8" srcdir="${src.java.dir}" destdir="${build.classes.dir}" classpathref="dependencies.path" includeantruntime="false"/>
+        <javac compiler="javac1.8" srcdir="${src.main.java.dir}" destdir="${build.classes.dir}" classpathref="dependencies.path" includeantruntime="false"/>
+    </target>
+
+    <target name="compile-test" depends="compile">
+        <echo>COMPILING JAVA TEST CLASSES</echo>
+        <mkdir dir="${test.dir}"/>
+        <javac compiler="javac1.8" srcdir="${src.test.dir}" destdir="${test.dir}" includeantruntime="false">
+            <classpath>
+                <path refid="dependencies.path"/>
+                <pathelement location="${build.classes.dir}"/>
+            </classpath>
+        </javac>
     </target>
 
 
@@ -45,7 +63,7 @@
         <echo>COPYING STATIC FILES TO WAR</echo>
         <mkdir dir="${build.war.dir}"/>
         <copy todir="${build.war.dir}">
-            <fileset dir="${src.webapp.dir}">
+            <fileset dir="${src.main.webapp.dir}">
                 <exclude name="WEB-INF/**"/>
             </fileset>
         </copy>
@@ -64,22 +82,66 @@
         <mkdir dir="${build.war.web-inf.classes.dir}"/>
         <copy todir="${build.war.web-inf.classes.dir}">
             <fileset dir="${build.classes.dir}"/>
-            <fileset dir="${src.resources.dir}"/>
+            <fileset dir="${src.main.resources.dir}"/>
         </copy>
         <copy todir="${build.war.web-inf.dir}">
-            <fileset dir="${src.webapp.web-inf.dir}"/>
+            <fileset dir="${src.main.webapp.web-inf.dir}"/>
         </copy>
     </target>
 
     <target name="build" depends="war-copy-static,war-copy-classes,war-copy-libs">
-        <echo>CREATING WAR</echo>
+        <echo>BUILDING WAR</echo>
         <war manifest="MANIFEST.MF" destfile="${build.dir}/${war.name}">
             <fileset dir="${build.war.dir}"/>
         </war>
     </target>
 
 
-    <target name="test" depends="build">
+    <target name="test" depends="compile-test">
+        <echo>TESTING</echo>
+        <mkdir dir="${test.report.dir}"/>
+        <junitlauncher printSummary="true">
+            <classpath>
+                <path refid="dependencies.path"/>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${test.dir}"/>
+            </classpath>
+            <testclasses outputdir="${test.report.dir}">
+                <fileset dir="${test.dir}"/>
+                <listener type="legacy-xml" sendSysErr="true" sendSysOut="true"/>
+            </testclasses>
+        </junitlauncher>
+    </target>
 
+
+    <target name="doc" depends="load-dependencies">
+        <echo>CREATING DOCUMENTATION</echo>
+        <mkdir dir="${doc.dir}"/>
+        <javadoc sourcepath="${src.main.java.dir}" classpathref="dependencies.path" destdir="${doc.dir}"/>
+
+        <mkdir dir="${build.war.dir}"/>
+        <copy todir="${build.war.doc.dir}">
+            <fileset dir="${doc.dir}"/>
+        </copy>
+        <antcall target="build"/>
+
+        <echo>GENERATING MD5 HASH</echo>
+        <signjar alias="${keystore.alias}" storepass="${keystore.password}" keystore="${keystore.path}" jar="${build.dir}/${war.name}" digestalg="MD5"/>
+        <echo>GENERATING SHA1 HASH</echo>
+        <signjar alias="${keystore.alias}" storepass="${keystore.password}" keystore="${keystore.path}" jar="${build.dir}/${war.name}" digestalg="SHA1"/>
+    </target>
+
+
+    <target name="scp" depends="build">
+        <scp file="${build.dir}/${war.name}" port="${scp.port}" todir="${scp.user}:${scp.password}@${scp.host}:${scp.dest-file}"/>
+    </target>
+
+
+    <target name="music" depends="build">
+        <sound>
+            <success source="${music.path}"/>
+        </sound>
+        <antcall target="build"/>
+        <echo>PLAYING --${music.path}--</echo>
     </target>
 </project>
