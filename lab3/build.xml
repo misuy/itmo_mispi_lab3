@@ -205,23 +205,71 @@
         </exec>
     </target>
 
+    <macrodef name="git-compile-commit">
+        <attribute name="commit-idx"/>
+        <attribute name="commits-count"/>
+        <sequential>
+            <echo>PROCESSING HEAD~@{commit-idx} COMMIT</echo>
+            <if>
+                <matches string="@{commit-idx}" pattern="@{commits-count}"/>
+                <else>
+                    <exec executable="git">
+                        <arg value="archive"/>
+                        <arg value="--output=${history.commits.dir}/commit-@{commit-idx}.zip"/>
+                        <arg value="HEAD~@{commit-idx}"/>
+                    </exec>
+
+                    <delete dir="${history.build.dir}"/>
+                    <mkdir dir="${history.build.dir}"/>
+                    <unzip src="${history.commits.dir}/commit-@{commit-idx}.zip" dest="${history.build.dir}"/>
+
+                    <var name="build-failed" value="false"/>
+                    <trycatch>
+                        <try>
+                            <ant antfile="${history.build.dir}/build.xml" target="compile" usenativebasedir="true"/>
+                        </try>
+                        <catch>
+                            <var name="build-failed" value="true"/>
+                        </catch>
+                    </trycatch>
+
+                    <if>
+                        <matches string="${build-failed}" pattern="true"/>
+                        <then>
+                            <math result="prev-commit-idx" datatype="int" operation="+" operand1="@{commit-idx}" operand2="1"/>
+                            <git-compile-commit commit-idx="${prev-commit-idx}" commits-count="@{commits-count}"/>
+                        </then>
+                        <else>
+                            <echo>COMMIT HEAD~@{commit-idx} IS OK</echo>
+                            <if>
+                                <matches string="@{commit-idx}" pattern="0"/>
+                                <else>
+                                    <math result="next-commit-idx" datatype="int" operation="-" operand1="@{commit-idx}" operand2="1"/>
+                                    <exec executable="git">
+                                        <arg value="diff"/>
+                                        <arg value="HEAD~@{commit-idx}"/>
+                                        <arg value="HEAD~${next-commit-idx}"/>
+                                        <arg value="--output=${history.diff.path}"/>
+                                    </exec>
+                                </else>
+                            </if>
+                        </else>
+                    </if>
+                </else>
+            </if>
+        </sequential>
+    </macrodef>
+
     <target name="history" depends="init-git">
         <exec executable="git" outputproperty="git.branch.size">
             <arg value="rev-list"/>
             <arg value="--count"/>
-            <arg value="HEAdD"/>
+            <arg value="HEAD"/>
         </exec>
-        <if>
-            <isset property="git.branch.size"/>
-            <then>
-                <echo>y</echo>
-            </then>
-            <else>
-                <echo>n</echo>
-            </else>
-        </if>
-        <echo>${git.branch.size}-</echo>
-        <echo>y</echo>
-        <mkdir dir="${history.dir}"/>
+
+        <mkdir dir="${history.commits.dir}"/>
+
+        <var name="zero" value="0"/>
+        <git-compile-commit commit-idx="${zero}" commits-count="${git.branch.size}"/>
     </target>
 </project>
