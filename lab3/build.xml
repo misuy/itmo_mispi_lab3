@@ -147,7 +147,6 @@
             <success source="${music.path}"/>
         </sound>
         <antcall target="build"/>
-        <echo>PLAYING --${music.path}--</echo>
     </target>
 
 
@@ -279,7 +278,7 @@
 
     <target name="alt">
         <echo>CREATING ALT WAR</echo>
-        
+
         <mkdir dir="${src.dir}"/>
         <mkdir dir="${tmp.src.dir}"/>
         <copy todir="${tmp.src.dir}">

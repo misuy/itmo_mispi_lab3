@@ -1,6 +1,7 @@
-package com.example.lab3.model;
+package com.example.lab3_test.model;
 
 import com.example.lab3.entities.Dot;
+import com.example.lab3.model.DotProcessor;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
