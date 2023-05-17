@@ -23,7 +23,7 @@ public class AttemptsRepository {
     }
 
     public void addAttempt(Attempt attempt) {
-        System.out.println(":3");
+        System.out.println(":33");
         EntityTransaction transaction = this.manager.getTransaction();
         transaction.begin();
         this.manager.persist(attempt);

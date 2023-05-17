@@ -144,7 +144,8 @@
 
     <target name="music" depends="build">
         <sound>
-            <success source="${music.path}"/>
+            <success source="${success.music.path}"/>
+            <fail source="${fail.music.path}"/>
         </sound>
         <antcall target="build"/>
     </target>
@@ -224,24 +225,24 @@
                     <mkdir dir="${history.build.dir}"/>
                     <unzip src="${history.commits.dir}/commit-@{commit-idx}.zip" dest="${history.build.dir}"/>
 
-                    <var name="build-failed" value="false"/>
+                    <var name="compiling-failed" value="false"/>
                     <trycatch>
                         <try>
                             <ant antfile="${history.build.dir}/build.xml" target="compile" usenativebasedir="true"/>
                         </try>
                         <catch>
-                            <var name="build-failed" value="true"/>
+                            <var name="compiling-failed" value="true"/>
                         </catch>
                     </trycatch>
 
                     <if>
-                        <matches string="${build-failed}" pattern="true"/>
+                        <matches string="${compiling-failed}" pattern="true"/>
                         <then>
                             <math result="prev-commit-idx" datatype="int" operation="+" operand1="@{commit-idx}" operand2="1"/>
                             <git-compile-commit commit-idx="${prev-commit-idx}" commits-count="@{commits-count}"/>
                         </then>
                         <else>
-                            <echo>COMMIT HEAD~@{commit-idx} IS OK</echo>
+                            <echo>COMMIT HEAD~@{commit-idx} CAN BE COMPILED</echo>
                             <if>
                                 <matches string="@{commit-idx}" pattern="0"/>
                                 <else>
@@ -252,6 +253,7 @@
                                         <arg value="HEAD~${next-commit-idx}"/>
                                         <arg value="--output=${history.diff.path}"/>
                                     </exec>
+                                    <echo>DIFF WRITTEN TO ${history.diff.path}</echo>
                                 </else>
                             </if>
                         </else>
@@ -262,17 +264,34 @@
     </macrodef>
 
     <target name="history" depends="init-git">
-        <echo>LOOKING FOR COMPILING COMMIT</echo>
-        <exec executable="git" outputproperty="git.branch.size">
-            <arg value="rev-list"/>
-            <arg value="--count"/>
-            <arg value="HEAD"/>
-        </exec>
+        <var name="compiling-failed" value="false"/>
+        <trycatch>
+            <try>
+                <antcall target="compile"/>
+            </try>
+            <catch>
+                <var name="compiling-failed" value="true"/>
+            </catch>
+        </trycatch>
+        <if>
+            <matches string="${compiling-failed}" pattern="false"/>
+            <then>
+                <echo>CURRENT VERSION CAN BE COMPILED</echo>
+            </then>
+            <else>
+                <echo>LOOKING FOR COMMIT THAT CAN BE COMPILED</echo>
+                <exec executable="git" outputproperty="git.branch.size">
+                    <arg value="rev-list"/>
+                    <arg value="--count"/>
+                    <arg value="HEAD"/>
+                </exec>
 
-        <mkdir dir="${history.commits.dir}"/>
+                <mkdir dir="${history.commits.dir}"/>
 
-        <var name="zero" value="0"/>
-        <git-compile-commit commit-idx="${zero}" commits-count="${git.branch.size}"/>
+                <var name="zero" value="0"/>
+                <git-compile-commit commit-idx="${zero}" commits-count="${git.branch.size}"/>
+            </else>
+        </if>
     </target>
 
 
