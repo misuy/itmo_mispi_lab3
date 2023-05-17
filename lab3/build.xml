@@ -94,6 +94,8 @@
 
     <target name="build" depends="war-copy-static,war-copy-classes,war-copy-libs">
         <echo>BUILDING WAR</echo>
+        <echo>${build.dir}</echo>
+        <echo>${build.war.dir}</echo>
         <war manifest="MANIFEST.MF" destfile="${build.dir}/${war.name}">
             <fileset dir="${build.war.dir}"/>
         </war>
@@ -261,6 +263,7 @@
     </macrodef>
 
     <target name="history" depends="init-git">
+        <echo>LOOKING FOR COMPILING COMMIT</echo>
         <exec executable="git" outputproperty="git.branch.size">
             <arg value="rev-list"/>
             <arg value="--count"/>
@@ -271,5 +274,58 @@
 
         <var name="zero" value="0"/>
         <git-compile-commit commit-idx="${zero}" commits-count="${git.branch.size}"/>
+    </target>
+
+
+    <target name="alt">
+        <echo>CREATING ALT WAR</echo>
+        
+        <mkdir dir="${src.dir}"/>
+        <mkdir dir="${tmp.src.dir}"/>
+        <copy todir="${tmp.src.dir}">
+            <fileset dir="${src.dir}"/>
+        </copy>
+
+        <mkdir dir="${build.war.dir}"/>
+        <mkdir dir="${tmp.build.war.dir}"/>
+        <copy todir="${tmp.build.war.dir}">
+            <fileset dir="${build.war.dir}"/>
+        </copy>
+
+        <mkdir dir="${build.classes.dir}"/>
+        <mkdir dir="${tmp.build.classes.dir}"/>
+        <copy todir="${tmp.build.classes.dir}">
+            <fileset dir="${build.classes.dir}"/>
+        </copy>
+
+
+        <replaceregexp match="alt.match" replace="alt.replace" flags="g">
+            <fileset dir="${src.dir}"/>
+        </replaceregexp>
+
+        <antcall target="build">
+            <param name="war.name" value="${alt.war.name}"/>
+        </antcall>
+
+
+        <delete dir="${src.dir}"/>
+        <mkdir dir="${src.dir}"/>
+        <copy todir="${src.dir}">
+            <fileset dir="${tmp.src.dir}"/>
+        </copy>
+
+        <delete dir="${build.war.dir}"/>
+        <mkdir dir="${build.war.dir}"/>
+        <copy todir="${build.war.dir}">
+            <fileset dir="${tmp.build.war.dir}"/>
+        </copy>
+
+        <delete dir="${build.classes.dir}"/>
+        <mkdir dir="${build.classes.dir}"/>
+        <copy todir="${build.classes.dir}">
+            <fileset dir="${tmp.build.classes.dir}"/>
+        </copy>
+        
+        <delete dir="${tmp.dir}"/>
     </target>
 </project>
